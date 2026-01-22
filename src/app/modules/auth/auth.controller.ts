@@ -11,6 +11,11 @@ import { envVars } from "../../config/env";
 import { createUserTokens } from "../../utils/userTokens";
 import { JwtPayload } from "jsonwebtoken";
 import passport from "passport";
+import { Invite } from "../invite/invite.model";
+import { generateToken, verifyToken } from "../../utils/jwt";
+import { User } from "../user/user.model";
+import bcryptjs from "bcryptjs";
+import * as crypto from "crypto";
 
 const credentialsLogin = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -40,15 +45,110 @@ const credentialsLogin = catchAsync(
         },
       });
     })(req, res, next);
-  }
+  },
 );
+
+// const inviteUser = catchAsync(async (req, res) => {
+//   const { email, role } = req.body;
+
+//   const token = req.headers.authorization as string;
+
+//   await Invite.create({
+//     email,
+//     role,
+//     token,
+//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+//   });
+
+//   sendResponse(res, {
+//     success: true,
+//     statusCode: 200,
+//     message: "Invitation sent successfully",
+//     data: {
+//       inviteToken: token,
+//     },
+//   });
+// });
+
+const inviteUser = catchAsync(async (req, res) => {
+  const { email, role } = req.body;
+
+  // Generate a random token for the invite
+  const token = crypto.randomBytes(32).toString("hex");
+
+  const invite = await Invite.create({
+    email,
+    role,
+    token,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+  });
+
+  console.log(`Invite Link: ${envVars.FRONT_END_URL}/register?token=${token}`);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Invitation sent successfully",
+    data: {
+      inviteToken: token,
+    },
+  });
+});
+
+const registerViaInvite = catchAsync(async (req, res) => {
+  const { inviteToken, password, name } = req.body;
+
+  if (!inviteToken) {
+    throw new AppError(400, "Invite token is required");
+  }
+
+  const invite = await Invite.findOne({
+    token: inviteToken.trim(),
+    isUsed: false,
+  });
+
+  console.log("TOKEN FROM BODY:", inviteToken);
+  console.log("INVITE FOUND:", invite);
+
+  if (!invite) {
+    throw new AppError(400, "Invalid or expired invite");
+  }
+
+  if (invite.expiresAt < new Date()) {
+    throw new AppError(400, "Invite expired");
+  }
+
+  const hashedPassword = await bcryptjs.hash(
+    password,
+    Number(envVars.BCRYPT_SALT_ROUND),
+  );
+
+  const user = await User.create({
+    email: invite.email,
+    password: hashedPassword,
+    role: invite.role,
+    name,
+  });
+
+  invite.isUsed = true;
+  invite.acceptedAt = new Date();
+  await invite.save();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 201,
+    message: "User registered successfully",
+    data: user,
+  });
+});
+
 const getNewAccessToken = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const refreshToken = req.cookies?.refreshToken as string;
     if (!refreshToken) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
-        "refresh token no received from cookies"
+        "refresh token no received from cookies",
       );
     }
     const tokenInfo = await AuthServices.getNewAccessToken(refreshToken);
@@ -60,7 +160,7 @@ const getNewAccessToken = catchAsync(
       message: " New Access Token Retrieved successfully",
       data: tokenInfo,
     });
-  }
+  },
 );
 const logOut = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -82,7 +182,7 @@ const logOut = catchAsync(
       message: "User Logged out Successfully",
       data: null,
     });
-  }
+  },
 );
 const resetPassword = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -93,7 +193,7 @@ const resetPassword = catchAsync(
     await AuthServices.resetPassword(
       oldPassword,
       newPassword,
-      decodedToken as JwtPayload
+      decodedToken as JwtPayload,
     );
 
     sendResponse(res, {
@@ -102,7 +202,7 @@ const resetPassword = catchAsync(
       message: "Password Change Successfully",
       data: null,
     });
-  }
+  },
 );
 
 const googleCallbackController = catchAsync(
@@ -126,13 +226,15 @@ const googleCallbackController = catchAsync(
     setAuthCookie(res, tokenInfo);
 
     res.redirect(`${envVars.FRONT_END_URL}/${redirectTo}`);
-  }
+  },
 );
 
 export const AuthController = {
   credentialsLogin,
+  inviteUser,
   getNewAccessToken,
   logOut,
   resetPassword,
   googleCallbackController,
+  registerViaInvite,
 };

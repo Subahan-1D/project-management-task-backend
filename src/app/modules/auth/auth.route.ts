@@ -8,12 +8,15 @@ import { envVars } from "../../config/env";
 const router = Router();
 
 router.post("/login", AuthController.credentialsLogin);
+router.post("/invite", checkAuth(Role.ADMIN), AuthController.inviteUser);
+
+router.post("/register-via-invite", AuthController.registerViaInvite);
 router.post("/refresh-token", AuthController.getNewAccessToken);
 router.post("/logout", AuthController.logOut);
 router.post(
   "/reset-password",
   checkAuth(...Object.values(Role)),
-  AuthController.resetPassword
+  AuthController.resetPassword,
 );
 
 router.get(
@@ -24,7 +27,7 @@ router.get(
       scope: ["profile", "email"],
       state: redirect as string,
     })(req, res, next);
-  }
+  },
 );
 
 // api/v1/auth/google/callback?state=/booking
@@ -33,7 +36,7 @@ router.get(
   passport.authenticate("google", {
     failureRedirect: `${envVars.FRONT_END_URL}/login?error=There is some issues with your account. Please contact with out support team!`,
   }),
-  AuthController.googleCallbackController
+  AuthController.googleCallbackController,
 );
 
 export const AuthRoutes = router;
