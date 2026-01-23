@@ -36,8 +36,8 @@ passport.use(
         }
 
         if (
-          isUserExist.isActive === IsActive.BLOCKED ||
-          isUserExist.isActive === IsActive.SUSPENDED
+          isUserExist.isActive === IsActive.ACTIVE||
+          isUserExist.isActive === IsActive.INACTIVE
         ) {
           // throw new AppError(httpStatus.BAD_REQUEST, `User is ${isUserExist.isActive}`)
           return done(`User is ${isUserExist.isActive}`);
@@ -109,8 +109,8 @@ passport.use(
 
         if (
           isUserExist &&
-          (isUserExist.isActive === IsActive.BLOCKED ||
-            isUserExist.isActive === IsActive.SUSPENDED)
+          (isUserExist.isActive === IsActive.ACTIVE ||
+            isUserExist.isActive === IsActive.INACTIVE)
         ) {
           // throw new AppError(httpStatus.BAD_REQUEST, `User is ${isUserExist.isActive}`)
           done(`User is ${isUserExist.isActive}`);
@@ -126,7 +126,7 @@ passport.use(
             email,
             name: profile.displayName,
             picture: profile.photos?.[0].value,
-            role: Role.RIDER,
+            role: Role.STAFF,
             isVerified: true,  
             auths: [
               {
