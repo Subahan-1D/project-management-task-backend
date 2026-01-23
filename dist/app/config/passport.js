@@ -28,8 +28,8 @@ passport_1.default.use(new passport_local_1.Strategy({
             // throw new AppError(httpStatus.BAD_REQUEST, "User is not verified")
             return done("User is not verified");
         }
-        if (isUserExist.isActive === user_interface_1.IsActive.BLOCKED ||
-            isUserExist.isActive === user_interface_1.IsActive.SUSPENDED) {
+        if (isUserExist.isActive === user_interface_1.IsActive.ACTIVE ||
+            isUserExist.isActive === user_interface_1.IsActive.INACTIVE) {
             // throw new AppError(httpStatus.BAD_REQUEST, `User is ${isUserExist.isActive}`)
             return done(`User is ${isUserExist.isActive}`);
         }
@@ -74,8 +74,8 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
             return done(null, false, { message: "User is not verified" });
         }
         if (isUserExist &&
-            (isUserExist.isActive === user_interface_1.IsActive.BLOCKED ||
-                isUserExist.isActive === user_interface_1.IsActive.SUSPENDED)) {
+            (isUserExist.isActive === user_interface_1.IsActive.ACTIVE ||
+                isUserExist.isActive === user_interface_1.IsActive.INACTIVE)) {
             // throw new AppError(httpStatus.BAD_REQUEST, `User is ${isUserExist.isActive}`)
             done(`User is ${isUserExist.isActive}`);
         }
@@ -88,7 +88,7 @@ passport_1.default.use(new passport_google_oauth20_1.Strategy({
                 email,
                 name: profile.displayName,
                 picture: profile.photos?.[0].value,
-                role: user_interface_1.Role.RIDER,
+                role: user_interface_1.Role.STAFF,
                 isVerified: true,
                 auths: [
                     {
